@@ -51,6 +51,28 @@ php artisan config:cache
 
 The package compares build versions to detect updates. Using one version across all instances prevents browsers from receiving alternating versions and getting stuck in a reload loop.
 
+### Environment variables
+
+The two variables above are the minimum commonly needed for the package. These additional variables are optional:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `BROWSER_CACHE_MANAGER_ENABLED` | `true` | Deployment-level master switch for the package. Set to `false` to disable it. |
+| `APP_BUILD_VERSION` | `APP_VERSION`, then `1.0.0` | Build identifier returned to browsers. Keep it identical across all instances of the same build. |
+| `BROWSER_CACHE_POLL_INTERVAL` | `300` | Seconds between browser status checks. |
+| `BROWSER_CACHE_SETTINGS_CACHE_SECONDS` | `15` | How long runtime settings are cached by the Laravel app. |
+| `BROWSER_CACHE_ROUTE_PREFIX` | `browser-cache` | URL prefix for the status, recovery, and optional admin routes. |
+| `BROWSER_CACHE_ADMIN_ENABLED` | `false` | Enables the optional admin page. Keep its authentication and authorization middleware in place. |
+
+For example, the following sets a five-minute polling interval and enables the admin page:
+
+```env
+BROWSER_CACHE_POLL_INTERVAL=300
+BROWSER_CACHE_ADMIN_ENABLED=true
+```
+
+These environment variables do not control individual recovery features. The deployment config defines which browser resources may be cleaned, while runtime switches such as package enabled state and recovery enabled state are stored in the database and can be managed through the protected admin page.
+
 > **About the bump command:** `php artisan browser-cache:bump <version>` updates `APP_BUILD_VERSION` in a writable `.env` file. It is useful for installations that manage a local `.env` file. If your deployment gets environment values from a platform or secret manager, update the version there instead.
 
 For example:
