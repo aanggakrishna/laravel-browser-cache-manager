@@ -1,20 +1,20 @@
 # Laravel Browser Cache Manager
 
-Package Laravel untuk memberi tahu browser bahwa aplikasi sudah diperbarui dan, bila admin mengizinkan, membersihkan beberapa penyimpanan browser yang dipilih. Package ini juga menyediakan tombol kecil mengambang agar pengguna bisa menjalankan pemulihan secara manual.
+A Laravel package that helps browsers detect when your application has been updated and, when an administrator allows it, clear selected browser storage. It also provides a small floating button so users can start recovery manually.
 
-> **Perlu diketahui:** browser tidak menyediakan cara bagi website untuk menjamin penghapusan seluruh HTTP cache. Redirect `301` yang tersimpan di disk cache dapat tetap digunakan browser. Package ini tidak bisa menjamin penghapusan redirect tersebut.
+> **Important:** Websites cannot guarantee that a browser will clear its entire HTTP cache. A `301` redirect stored in the browser's disk cache may still be used. This package cannot guarantee that such a redirect is removed.
 
-## Mulai cepat
+## Quick start
 
-### 1. Pasang package
+### 1. Install the package
 
-Package mendukung PHP 8.1+ dan Laravel 10, 11, atau 12.
+The package supports PHP 8.1+ and Laravel 10, 11, or 12.
 
 ```bash
 composer require aanggakrishna/laravel-browser-cache-manager
 ```
 
-Laravel akan menemukan service provider secara otomatis. Publikasikan konfigurasi dan file JavaScript, lalu jalankan migrasi:
+Laravel discovers the service provider automatically. Publish the configuration and JavaScript file, then run the migration:
 
 ```bash
 php artisan vendor:publish --tag=browser-cache-config
@@ -22,46 +22,46 @@ php artisan vendor:publish --tag=browser-cache-assets
 php artisan migrate
 ```
 
-Konfigurasi tersimpan di `config/browser-cache-manager.php`. File JavaScript dipasang di `public/vendor/browser-cache-manager/`.
+The configuration is at `config/browser-cache-manager.php`. The JavaScript file is published to `public/vendor/browser-cache-manager/`.
 
-### 2. Tampilkan tombol
+### 2. Show the button
 
-Tambahkan directive berikut satu kali pada layout Blade utama aplikasi, biasanya di dalam `<head>`:
+Add this directive once to your main Blade layout, usually inside `<head>`:
 
 ```blade
 @browserCacheManager
 ```
 
-Tombol perkakas akan muncul di pojok kanan bawah. Pengguna dapat membuka tombol itu, lalu memilih **Bersihkan cache & perbarui**. Setelah proses selesai, package menampilkan ringkasan hasil dan tombol untuk memuat ulang aplikasi.
+A small tool button appears in the bottom-right corner. Users can open it and choose **Clear cache & update**. When the operation finishes, the package shows a results summary and a separate button to reload the application.
 
-### 3. Tetapkan versi build aplikasi
+### 3. Set the application build version
 
-Gunakan identitas versi yang berubah setiap kali Anda merilis build aplikasi. Atur nilainya di environment deployment:
+Use a version identifier that changes whenever you release a new application build. Set it in your deployment environment:
 
 ```env
 BROWSER_CACHE_MANAGER_ENABLED=true
 APP_BUILD_VERSION=2026.10.27.1
 ```
 
-Gunakan nilai `APP_BUILD_VERSION` yang sama pada semua instance/server yang menjalankan build tersebut. Naikkan nilainya untuk build berikutnya. Setelah mengubah environment, ikuti proses deployment aplikasi Anda dan bangun ulang config cache bila digunakan:
+Use the same `APP_BUILD_VERSION` on every server or instance running that build. Change the value for the next build. After changing the environment, follow your normal deployment process and rebuild the config cache if your application uses it:
 
 ```bash
 php artisan config:cache
 ```
 
-Package membandingkan versi build untuk mendeteksi pembaruan. Nilai yang sama di semua instance mencegah browser menerima versi berbeda secara bergantian dan terus memuat ulang.
+The package compares build versions to detect updates. Using one version across all instances prevents browsers from receiving alternating versions and getting stuck in a reload loop.
 
-> **Catatan perintah bump:** `php artisan browser-cache:bump <versi>` mengubah `APP_BUILD_VERSION` di file `.env` yang dapat ditulis. Perintah ini berguna untuk instalasi dengan `.env` lokal. Pada deployment yang mengambil environment dari platform atau secret manager, ubah nilainya di sistem deployment tersebut.
+> **About the bump command:** `php artisan browser-cache:bump <version>` updates `APP_BUILD_VERSION` in a writable `.env` file. It is useful for installations that manage a local `.env` file. If your deployment gets environment values from a platform or secret manager, update the version there instead.
 
-Contoh:
+For example:
 
 ```bash
 php artisan browser-cache:bump 2026.10.27.2
 ```
 
-## Mengatur tombol
+## Configure the button
 
-Secara default tombol aktif di kanan bawah dengan jarak 20 piksel dari tepi. Ubah bagian `widget` di `config/browser-cache-manager.php`:
+By default, the button is enabled in the bottom-right corner, 20 pixels from the edges. Change the `widget` section in `config/browser-cache-manager.php`:
 
 ```php
 'widget' => [
@@ -72,13 +72,13 @@ Secara default tombol aktif di kanan bawah dengan jarak 20 piksel dari tepi. Uba
 ],
 ```
 
-Atur `enabled` ke `false` untuk menyembunyikan tombol. Posisi dan jarak juga dapat diubah dari halaman admin jika halaman tersebut diaktifkan.
+Set `enabled` to `false` to hide the button. You can also change its position and offsets from the admin page if you enable that page.
 
-## Mengaktifkan pemulihan cache
+## Enable cache recovery
 
-Pembersihan dinonaktifkan secara default agar package tidak menghapus penyimpanan tanpa persetujuan konfigurasi aplikasi. Untuk mengaktifkannya, atur opsi `recovery` di `config/browser-cache-manager.php`.
+Cleanup is disabled by default so the package does not remove browser storage without your application's explicit configuration. To enable it, set the `recovery` options in `config/browser-cache-manager.php`.
 
-Contoh yang hanya menghapus Cache Storage bernama `my-app-v3` dan key `my-app:` di localStorage:
+This example only removes the Cache Storage entry named `my-app-v3` and localStorage keys beginning with `my-app:`:
 
 ```php
 'recovery' => [
@@ -96,37 +96,31 @@ Contoh yang hanya menghapus Cache Storage bernama `my-app-v3` dan key `my-app:` 
 ],
 ```
 
-Isi hanya nama cache, database, scope service worker, dan prefix localStorage yang memang dimiliki aplikasi Anda. Hindari menghapus semua data origin jika aplikasi atau sistem lain menggunakan penyimpanan yang sama.
+Only list cache names, database names, service worker scopes, and localStorage prefixes owned by your application. Avoid clearing all origin data if other applications or systems share that storage.
 
-Opsi berikut dapat diaktifkan terpisah sesuai kebutuhan:
+Enable these options individually as needed:
 
-- `clear_cache_storage`: hapus entri Cache Storage bernama yang didaftarkan.
-- `unregister_service_workers`: unregister service worker yang scope-nya didaftarkan.
-- `delete_indexeddb`: hapus database IndexedDB bernama yang didaftarkan.
-- `clear_local_storage`: hapus key localStorage dengan prefix yang didaftarkan.
-- `clear_http_cache`: kirim header `Clear-Site-Data: "cache"` ketika endpoint pemulihan dipanggil.
+- `clear_cache_storage`: remove the configured Cache Storage entries.
+- `unregister_service_workers`: unregister service workers whose scopes are configured.
+- `delete_indexeddb`: delete the configured IndexedDB databases.
+- `clear_local_storage`: remove localStorage keys that start with the configured prefixes.
+- `clear_http_cache`: send the `Clear-Site-Data: "cache"` header when the recovery endpoint is called.
 
-Operasi browser bersifat best effort. Ringkasan tombol melaporkan hasil yang dapat diamati oleh JavaScript, seperti jumlah entri yang dihapus atau kegagalan yang dilaporkan browser. Ringkasan itu bukan bukti bahwa seluruh cache browser telah dibersihkan.
+Browser operations are best effort. The button reports results JavaScript can observe, such as how many entries were removed or which operations the browser reported as failed. The summary does not prove that every browser cache was cleared.
 
-### Tentang HTTP cache dan redirect 301
+### HTTP cache and `301` redirects
 
-JavaScript halaman tidak dapat menghapus seluruh HTTP cache browser. Jika `clear_http_cache` diaktifkan, server meminta browser membersihkan cache untuk origin ini dengan header `Clear-Site-Data: "cache"`. Tambahkan juga meta tag CSRF Laravel pada layout agar request POST dapat dikirim:
+Page JavaScript cannot clear the browser's entire HTTP cache. If `clear_http_cache` is enabled, the server asks the browser to clear cached data for this origin using the `Clear-Site-Data: "cache"` header. Browser support and behavior vary. This request may clear other cached responses for the same origin, and it does not clear CDN or proxy caches.
 
-```blade
-<meta name="csrf-token" content="{{ csrf_token() }}">
-```
+A browser may also use a locally stored `301` redirect without contacting the server. In that case, the server never receives the recovery request, so the package cannot remove that redirect. The user may need to clear site data or cache through the browser's settings.
 
-Dukungan dan perilakunya bergantung pada browser. Permintaan ini dapat menghapus respons cache lain untuk origin yang sama, dan tidak membersihkan cache CDN/proxy.
+This feature does not delete cookies or login sessions. Still, test the recovery configuration in the browsers your application supports before enabling broader cleanup options.
 
-Browser juga dapat menggunakan redirect `301` yang disimpan lokal tanpa meminta server. Dalam kondisi itu server tidak menerima request pemulihan, sehingga package tidak dapat menghapus redirect tersebut. Pengguna mungkin perlu membersihkan data situs/cache melalui pengaturan browser.
+## Enable the admin page (optional)
 
-Fitur ini tidak menghapus cookie atau session login. Namun, aplikasi sebaiknya menguji konfigurasi pemulihan di browser yang digunakan sebelum mengaktifkan opsi yang lebih luas.
+The admin page is disabled by default. When enabled, it is available at `/browser-cache/admin` and uses the `web`, `auth`, and `can:manage-browser-cache` middleware by default.
 
-## Mengaktifkan halaman admin (opsional)
-
-Halaman admin nonaktif secara default. Jika diaktifkan, route berada di `/browser-cache/admin` dan memakai middleware `web`, `auth`, serta Gate `manage-browser-cache` secara default.
-
-Tambahkan Gate tersebut di `App\Providers\AppServiceProvider` atau provider authorization aplikasi:
+Define the Gate in `App\Providers\AppServiceProvider` or your application's authorization provider:
 
 ```php
 use Illuminate\Support\Facades\Gate;
@@ -139,13 +133,13 @@ public function boot(): void
 }
 ```
 
-Sesuaikan `is_admin` dengan mekanisme peran aplikasi Anda. Lalu aktifkan halaman admin:
+Replace `is_admin` with your application's authorization logic. Then enable the admin page:
 
 ```env
 BROWSER_CACHE_ADMIN_ENABLED=true
 ```
 
-Middleware dapat diubah di `config/browser-cache-manager.php`:
+You can change the middleware in `config/browser-cache-manager.php`:
 
 ```php
 'admin' => [
@@ -154,34 +148,34 @@ Middleware dapat diubah di `config/browser-cache-manager.php`:
 ],
 ```
 
-Jangan membuka route admin tanpa autentikasi dan otorisasi yang sesuai. Halaman ini mengubah pengaturan runtime di database.
+Do not expose the admin route without appropriate authentication and authorization. This page changes runtime settings stored in the database.
 
-## Cara polling bekerja
+## How polling works
 
-Browser memeriksa endpoint status secara berkala untuk mengetahui versi build dan pengaturan runtime. Interval default adalah 300 detik dan dapat diubah melalui `BROWSER_CACHE_POLL_INTERVAL`. Endpoint status memakai throttle dan respons cache validator agar pemeriksaan berulang tetap ringan.
+The browser checks the status endpoint periodically for the build version and runtime settings. The default interval is 300 seconds; change it with `BROWSER_CACHE_POLL_INTERVAL`. The status endpoint is throttled and uses cache validators to keep repeated checks lightweight.
 
-Pengaturan runtime disimpan di tabel `browser_cache_settings`. Master switch environment `BROWSER_CACHE_MANAGER_ENABLED=false` dapat mematikan package pada deployment tanpa mengandalkan database.
+Runtime settings are stored in the `browser_cache_settings` table. The `BROWSER_CACHE_MANAGER_ENABLED=false` environment master switch can disable the package for a deployment without relying on the database.
 
-## Menjalankan test
+## Run the tests
 
 ```bash
 composer install
 composer test
 ```
 
-## Rilis ke GitHub dan Packagist
+## Publish to GitHub and Packagist
 
 Repository: [github.com/aanggakrishna/laravel-browser-cache-manager](https://github.com/aanggakrishna/laravel-browser-cache-manager)
 
-Untuk menerbitkan versi baru:
+To publish a new version:
 
-1. Commit dan push perubahan ke GitHub.
-2. Buat tag versi, misalnya `v1.0.1`, lalu push tag tersebut.
-3. Pastikan package terdaftar di Packagist dan sinkronkan package bila perlu.
-4. Agar Packagist memperbarui data otomatis setiap push/tag, hubungkan webhook GitHub Packagist sesuai petunjuk Packagist.
+1. Commit and push your changes to GitHub.
+2. Create a version tag, such as `v1.0.1`, and push the tag.
+3. Make sure the package is registered on Packagist and update it if needed.
+4. To have Packagist update automatically after pushes or tags, connect the Packagist GitHub webhook as described in Packagist's instructions.
 
-Composer menggunakan tag versi untuk memilih rilis stabil. Pengguna sebaiknya memasang versi stabil, bukan `dev-main`, untuk aplikasi produksi.
+Composer uses version tags to select stable releases. For production applications, install a stable release instead of `dev-main`.
 
-## Lisensi
+## License
 
-MIT. Lihat [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).
