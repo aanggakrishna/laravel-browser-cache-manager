@@ -50,7 +50,7 @@ This loads the published `public/vendor/browser-cache-manager/browser-cache-mana
 
 The `BROWSER_CACHE_MANAGER_ENABLED` environment value is a deployment-level master switch. When true, operators can change the runtime `enabled` and `auto_check` settings in `browser_cache_settings` without redeploying. DB settings are cached for 15 seconds by default (`BROWSER_CACHE_SETTINGS_CACHE_SECONDS`); allow for that propagation delay. A database/cache outage falls back to safe defaults, and the endpoint still returns the configured build version.
 
-The floating tool button is enabled by default and appears at the bottom-right. Choose one of `bottom-right`, `bottom-left`, `top-right`, or `top-left`, and offsets from 0–500 pixels, in `config/browser-cache-manager.php` or in the optional admin UI. Its menu action clears only configured/allowed app resources, optionally asks the browser to clear this origin's HTTP cache, then reloads the current page. For the HTTP cache request to pass Laravel CSRF protection, add this to the host layout's `<head>`:
+The floating tool button is enabled by default and appears at the bottom-right. Choose one of `bottom-right`, `bottom-left`, `top-right`, or `top-left`, and offsets from 0–500 pixels, in `config/browser-cache-manager.php` or in the optional admin UI. Its menu action reports deletion counts, missing resources, and failed/blocked operations before offering a separate reload button. For the HTTP cache, it reports only that the browser received a clear request; web pages cannot confirm that each browser actually cleared it. For the HTTP cache request to pass Laravel CSRF protection, add this to the host layout's `<head>`:
 
 ```blade
 <meta name="csrf-token" content="{{ csrf_token() }}">

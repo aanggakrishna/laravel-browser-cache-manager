@@ -16,6 +16,7 @@
   var toggle = null;
   var message = null;
   var action = null;
+  var recoveryComplete = false;
 
   function safeStorage(storage, method, key, value) {
     try {
@@ -79,7 +80,7 @@
     widget = document.createElement('div');
     widget.className = 'bcm-widget';
     widget.setAttribute('data-browser-cache-manager', '');
-    widget.innerHTML = '<button class="bcm-toggle" type="button" aria-label="Buka menu perbaikan aplikasi" aria-expanded="false" aria-controls="bcm-widget-menu"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M14.7 6.3a5 5 0 0 0-6.4 6.4L3.5 17.5a2.1 2.1 0 0 0 3 3l4.8-4.8a5 5 0 0 0 6.4-6.4l-3 3-3-3 3-3Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button><section class="bcm-menu" id="bcm-widget-menu" aria-label="Perbaikan aplikasi" hidden><h2 class="bcm-menu-title">Perbaikan aplikasi</h2><p class="bcm-menu-copy">Bersihkan cache aplikasi yang dikonfigurasi, lalu muat ulang aplikasi.</p><button class="bcm-action" type="button">Bersihkan cache &amp; perbarui</button><p class="bcm-message" role="status" aria-live="polite"></p></section>';
+    widget.innerHTML = '<button class="bcm-toggle" type="button" aria-label="Buka menu perbaikan aplikasi" aria-expanded="false" aria-controls="bcm-widget-menu"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M14.7 6.3a5 5 0 0 0-6.4 6.4L3.5 17.5a2.1 2.1 0 0 0 3 3l4.8-4.8a5 5 0 0 0 6.4-6.4l-3 3-3-3 3-3Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button><section class="bcm-menu" id="bcm-widget-menu" aria-label="Perbaikan aplikasi" hidden><h2 class="bcm-menu-title">Perbaikan aplikasi</h2><p class="bcm-menu-copy">Bersihkan cache aplikasi yang dikonfigurasi, lalu muat ulang aplikasi.</p><button class="bcm-action" type="button">Bersihkan cache &amp; perbarui</button><p class="bcm-message" role="alert" aria-live="assertive"></p></section>';
     document.body.appendChild(widget);
     widget.hidden = script.dataset.widgetEnabled === 'false';
     toggle = widget.querySelector('.bcm-toggle');
@@ -111,45 +112,72 @@
   }
 
   async function recover(settings) {
-    if (!settings || !settings.enabled) return 0;
-    var failures = 0;
-    async function attempt(task) { try { await task(); } catch (_) { failures += 1; } }
+    var result = {
+      cacheStorage: { available: !!window.caches, removed: 0, missing: 0, failed: 0 },
+      serviceWorkers: { available: !!(navigator.serviceWorker && navigator.serviceWorker.getRegistrations), matched: 0, removed: 0, failed: 0 },
+      indexedDb: { available: !!window.indexedDB, completed: 0, failed: 0 },
+      localStorage: { removed: 0, failed: 0 }
+    };
+    if (!settings || !settings.enabled) return result;
 
     if (settings.clear_cache_storage && window.caches && Array.isArray(settings.cache_storage_names)) {
-      await Promise.all(settings.cache_storage_names.map(function (name) { return attempt(function () { return window.caches.delete(name); }); }));
+      await Promise.all(settings.cache_storage_names.map(async function (name) {
+        try {
+          if (await window.caches.delete(name)) result.cacheStorage.removed += 1;
+          else result.cacheStorage.missing += 1;
+        } catch (_) { result.cacheStorage.failed += 1; }
+      }));
     }
     if (settings.unregister_service_workers && navigator.serviceWorker && Array.isArray(settings.service_worker_scopes)) {
-      await attempt(async function () {
+      try {
         var registrations = await navigator.serviceWorker.getRegistrations();
         var owned = registrations.filter(function (registration) {
           return settings.service_worker_scopes.some(function (scope) {
             try { return scope && registration.scope.indexOf(new URL(scope, window.location.origin).href) === 0; } catch (_) { return false; }
           });
         });
-        await Promise.all(owned.map(function (registration) { return registration.unregister(); }));
-      });
+        result.serviceWorkers.matched = owned.length;
+        await Promise.all(owned.map(async function (registration) {
+          try {
+            if (await registration.unregister()) result.serviceWorkers.removed += 1;
+            else result.serviceWorkers.missing += 1;
+          } catch (_) { result.serviceWorkers.failed += 1; }
+        }));
+      } catch (_) { result.serviceWorkers.failed += 1; }
     }
     if (settings.delete_indexeddb && window.indexedDB && Array.isArray(settings.indexeddb_names)) {
       await Promise.all(settings.indexeddb_names.map(function (name) {
-        return attempt(function () { return new Promise(function (resolve, reject) {
-          var request = window.indexedDB.deleteDatabase(name);
-          request.onsuccess = function () { resolve(); };
-          request.onerror = function () { reject(request.error); };
-          request.onblocked = function () { reject(new Error('IndexedDB delete blocked')); };
-        }); });
+        return new Promise(function (resolve) {
+          var settled = false;
+          var request;
+          function finish(ok) {
+            if (settled) return;
+            settled = true;
+            if (ok) result.indexedDb.completed += 1;
+            else result.indexedDb.failed += 1;
+            resolve();
+          }
+          try {
+            request = window.indexedDB.deleteDatabase(name);
+            request.onsuccess = function () { finish(true); };
+            request.onerror = function () { finish(false); };
+            request.onblocked = function () { finish(false); };
+          } catch (_) { finish(false); }
+        });
       }));
     }
     if (settings.clear_local_storage && Array.isArray(settings.local_storage_prefixes)) {
-      await attempt(function () {
+      try {
         var remove = [];
         for (var i = 0; i < window.localStorage.length; i += 1) {
           var key = window.localStorage.key(i);
           if (key && settings.local_storage_prefixes.some(function (prefix) { return prefix && key.indexOf(prefix) === 0; })) remove.push(key);
         }
         remove.forEach(function (key) { window.localStorage.removeItem(key); });
-      });
+        result.localStorage.removed = remove.length;
+      } catch (_) { result.localStorage.failed += 1; }
     }
-    return failures;
+    return result;
   }
 
   async function requestHttpCacheClear(settings) {
@@ -160,27 +188,53 @@
       method: 'POST', credentials: 'same-origin', cache: 'no-store',
       headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf.content }
     });
-    return response.ok;
+    if (!response.ok) return false;
+    var body = await response.json();
+    return body.http_cache_clear_requested === true && (response.headers.get('Clear-Site-Data') || '').indexOf('"cache"') !== -1;
   }
 
   async function runManualRecovery() {
+    if (recoveryComplete) {
+      window.location.reload();
+      return;
+    }
     if (action.disabled) return;
     action.disabled = true;
     var settings = lastState && lastState.recovery ? lastState.recovery : { enabled: false };
-    var failures = await recover(settings);
+    var result = await recover(settings);
     var httpCacheRequested = false;
-    try { httpCacheRequested = await requestHttpCacheClear(settings); } catch (_) { failures += 1; }
-
+    try { httpCacheRequested = await requestHttpCacheClear(settings); } catch (_) { /* Report that the server request was not confirmed. */ }
+    var details = [];
     if (!settings.enabled) {
-      message.textContent = 'Pembersihan belum diaktifkan admin. Aplikasi akan dimuat ulang.';
-    } else if (failures) {
-      message.textContent = 'Sebagian pembersihan gagal atau diblokir browser. Aplikasi akan dimuat ulang.';
-    } else if (settings.clear_http_cache && !httpCacheRequested) {
-      message.textContent = 'Cache terpilih diproses. HTTP cache tidak dapat diminta; periksa meta CSRF dan dukungan browser.';
+      details.push('Pembersihan belum diaktifkan admin.');
     } else {
-      message.textContent = 'Pembersihan terpilih diproses. Aplikasi akan dimuat ulang.';
+      if (settings.clear_cache_storage) {
+        if (!result.cacheStorage.available) details.push('Cache Storage: API tidak tersedia di browser ini.');
+        else if (!Array.isArray(settings.cache_storage_names) || settings.cache_storage_names.length === 0) details.push('Cache Storage: belum ada nama cache yang diizinkan admin.');
+        else details.push('Cache Storage: ' + result.cacheStorage.removed + ' dihapus, ' + result.cacheStorage.missing + ' tidak ditemukan, ' + result.cacheStorage.failed + ' gagal.');
+      }
+      if (settings.unregister_service_workers) {
+        if (!result.serviceWorkers.available) details.push('Service worker: API tidak tersedia di browser ini.');
+        else if (!Array.isArray(settings.service_worker_scopes) || settings.service_worker_scopes.length === 0) details.push('Service worker: belum ada scope yang diizinkan admin.');
+        else details.push('Service worker: ' + result.serviceWorkers.matched + ' cocok dengan scope, ' + result.serviceWorkers.removed + ' dilepas, ' + result.serviceWorkers.failed + ' gagal/tidak terkonfirmasi.');
+      }
+      if (settings.delete_indexeddb) {
+        if (!result.indexedDb.available) details.push('IndexedDB: API tidak tersedia di browser ini.');
+        else if (!Array.isArray(settings.indexeddb_names) || settings.indexeddb_names.length === 0) details.push('IndexedDB: belum ada nama database yang diizinkan admin.');
+        else details.push('IndexedDB: ' + result.indexedDb.completed + ' permintaan selesai, ' + result.indexedDb.failed + ' gagal atau diblokir.');
+      }
+      if (settings.clear_local_storage) {
+        if (!Array.isArray(settings.local_storage_prefixes) || settings.local_storage_prefixes.length === 0) details.push('localStorage: belum ada prefix yang diizinkan admin.');
+        else details.push('localStorage: ' + result.localStorage.removed + ' key dihapus, ' + result.localStorage.failed + ' gagal.');
+      }
+      if (settings.clear_http_cache) details.push(httpCacheRequested ? 'HTTP cache: browser diminta menghapus cache origin; hasil aktual bergantung browser.' : 'HTTP cache: permintaan tidak terkonfirmasi; periksa token CSRF dan dukungan browser.');
+      if (details.length === 0) details.push('Tidak ada jenis pembersihan yang diaktifkan.');
     }
-    window.setTimeout(function () { window.location.reload(); }, 500);
+    details.push('Periksa hasilnya, lalu muat ulang aplikasi.');
+    message.textContent = details.join(' ');
+    action.textContent = 'Muat ulang aplikasi';
+    action.disabled = false;
+    recoveryComplete = true;
   }
 
   async function poll() {
