@@ -163,19 +163,6 @@ composer install
 composer test
 ```
 
-## Publish to GitHub and Packagist
-
-Repository: [github.com/aanggakrishna/laravel-browser-cache-manager](https://github.com/aanggakrishna/laravel-browser-cache-manager)
-
-To publish a new version:
-
-1. Commit and push your changes to GitHub.
-2. Create a version tag, such as `v1.0.1`, and push the tag.
-3. Make sure the package is registered on Packagist and update it if needed.
-4. To have Packagist update automatically after pushes or tags, connect the Packagist GitHub webhook as described in Packagist's instructions.
-
-Composer uses version tags to select stable releases. For production applications, install a stable release instead of `dev-main`.
-
 ## License
 
 MIT. See [LICENSE](LICENSE).
