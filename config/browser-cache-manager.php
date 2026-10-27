@@ -12,9 +12,17 @@ return [
         'enabled' => (bool) env('BROWSER_CACHE_ADMIN_ENABLED', false),
         'middleware' => ['web', 'auth', 'can:manage-browser-cache'],
     ],
+    'widget' => [
+        'enabled' => true,
+        'position' => 'bottom-right',
+        'offset_x' => 20,
+        'offset_y' => 20,
+    ],
     // All cleanup options default off. Only app-owned cache names/databases may be listed.
     'recovery' => [
         'enabled' => false,
+        // Sends Clear-Site-Data: "cache" on the manual action; clears the origin's browser cache.
+        'clear_http_cache' => false,
         'clear_cache_storage' => false,
         'cache_storage_names' => [],
         'unregister_service_workers' => false,

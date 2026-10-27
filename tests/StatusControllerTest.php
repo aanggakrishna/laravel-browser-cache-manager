@@ -16,7 +16,9 @@ class StatusControllerTest extends TestCase
     {
         config(['browser-cache-manager.version' => '2.4.1', 'browser-cache-manager.enabled' => true]);
         $response = $this->getJson('/browser-cache/status');
-        $response->assertOk()->assertJsonPath('version', '2.4.1')->assertJsonPath('enabled', true)->assertJsonPath('recovery.enabled', false);
+        $response->assertOk()->assertJsonPath('version', '2.4.1')->assertJsonPath('enabled', true)
+            ->assertJsonPath('widget.position', 'bottom-right')->assertJsonPath('widget.enabled', true)
+            ->assertJsonPath('recovery.enabled', false);
     }
 
     public function test_master_switch_disables_status_and_blade_integration(): void
@@ -32,5 +34,13 @@ class StatusControllerTest extends TestCase
         $etag = $first->headers->get('ETag');
 
         $this->withHeaders(['If-None-Match' => $etag])->get('/browser-cache/status')->assertStatus(304);
+    }
+
+    public function test_manual_http_cache_clear_is_not_enabled_by_default(): void
+    {
+        $this->withoutMiddleware();
+        $response = $this->postJson('/browser-cache/recover');
+        $response->assertOk()->assertJsonPath('http_cache_clear_requested', false);
+        $this->assertNull($response->headers->get('Clear-Site-Data'));
     }
 }

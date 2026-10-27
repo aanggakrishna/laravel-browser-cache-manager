@@ -23,8 +23,11 @@ class BrowserCacheManagerServiceProvider extends ServiceProvider
         Blade::directive('browserCacheManager', function ($expression = null): string {
             if (!config('browser-cache-manager.enabled', true)) return '';
             $url = route('browser-cache-manager.status');
+            $recoveryUrl = route('browser-cache-manager.recover');
             $script = asset('vendor/browser-cache-manager/browser-cache-manager.js');
-            return '<script src="'.e($script).'" data-endpoint="'.e($url).'" defer></script>';
+            $widget = (array) config('browser-cache-manager.widget', []);
+            $widgetEnabled = ($widget['enabled'] ?? true) ? 'true' : 'false';
+            return '<script src="'.e($script).'" data-endpoint="'.e($url).'" data-recovery-endpoint="'.e($recoveryUrl).'" data-widget-enabled="'.$widgetEnabled.'" data-widget-position="'.e((string) ($widget['position'] ?? 'bottom-right')).'" data-widget-offset-x="'.e((string) ($widget['offset_x'] ?? 20)).'" data-widget-offset-y="'.e((string) ($widget['offset_y'] ?? 20)).'" defer></script>';
         });
 
         if ($this->app->runningInConsole()) {

@@ -12,14 +12,23 @@ class StatusController extends Controller
     {
         $current = (string) config('browser-cache-manager.version', '1.0.0');
         $values = $settings->all();
-        $enabled = (bool) ($values['enabled'] && $values['auto_check']);
+        $runtimeEnabled = (bool) $values['enabled'];
+        $enabled = $runtimeEnabled && (bool) $values['auto_check'];
         $body = [
             'enabled' => $enabled,
+            'package_enabled' => (bool) config('browser-cache-manager.enabled', true) && $runtimeEnabled,
             'version' => $current,
             'poll_interval' => max(30, min(3600, (int) config('browser-cache-manager.poll_interval', 300))),
-            'recovery' => $enabled && (bool) $values['recovery_enabled'] ? [
+            'widget' => [
+                'enabled' => (bool) $values['widget_enabled'],
+                'position' => $values['widget_position'],
+                'offset_x' => (int) $values['widget_offset_x'],
+                'offset_y' => (int) $values['widget_offset_y'],
+            ],
+            'recovery' => $runtimeEnabled && (bool) $values['recovery_enabled'] ? [
                 'enabled' => true,
                 'force_reload' => (bool) $values['force_reload'],
+                'clear_http_cache' => (bool) $values['clear_http_cache'],
                 'clear_cache_storage' => (bool) $values['clear_cache_storage'],
                 'cache_storage_names' => (array) config('browser-cache-manager.recovery.cache_storage_names', []),
                 'unregister_service_workers' => (bool) $values['unregister_service_workers'],

@@ -1,10 +1,12 @@
 # Laravel Browser Cache Manager
 
-Safe, opt-in build version polling for Laravel 10, 11, and 12 applications. It can notify the browser that a new build is deployed and, only when explicitly enabled, remove selected app-owned browser resources.
+Safe, opt-in build version polling for Laravel 10, 11, and 12 applications. It can notify the browser that a new build is deployed, provide a floating repair button, and—only when explicitly enabled—remove selected app-owned browser resources.
 
 ## Important browser limits
 
-A web server cannot remotely clear a user's entire browser cache. JavaScript runs under the current origin and browser permission model. Cache Storage, service workers, IndexedDB, and localStorage can be managed only where supported and only for resources belonging to that origin. This package does not touch cookies, session storage, authentication state, or unrelated storage by default. Recovery is disabled by default. Clearing or unregistering resources may disrupt an application if configured incorrectly; keep explicit allowlists narrow and test them first. There is no guarantee every stale asset or CDN response can be cleared.
+A web server cannot remotely clear a user's entire browser cache on demand in every browser. JavaScript runs under the current origin and browser permission model. Cache Storage, service workers, IndexedDB, and localStorage can be managed only where supported and only for resources belonging to that origin. This package does not touch cookies, session storage, authentication state, or unrelated storage by default. Recovery is disabled by default. Clearing or unregistering resources may disrupt an application if configured incorrectly; keep explicit allowlists narrow and test them first. There is no guarantee every stale asset or CDN response can be cleared.
+
+The optional `Clear-Site-Data: "cache"` response can ask a supporting browser to clear its HTTP cache for the whole origin. It only works when the browser reaches the server; it cannot fix a 301 redirect already served directly from browser cache. It does not clear CDN/proxy caches and can increase reload traffic across the site, so it is off by default.
 
 ## Requirements
 
@@ -48,12 +50,19 @@ This loads the published `public/vendor/browser-cache-manager/browser-cache-mana
 
 The `BROWSER_CACHE_MANAGER_ENABLED` environment value is a deployment-level master switch. When true, operators can change the runtime `enabled` and `auto_check` settings in `browser_cache_settings` without redeploying. DB settings are cached for 15 seconds by default (`BROWSER_CACHE_SETTINGS_CACHE_SECONDS`); allow for that propagation delay. A database/cache outage falls back to safe defaults, and the endpoint still returns the configured build version.
 
+The floating tool button is enabled by default and appears at the bottom-right. Choose one of `bottom-right`, `bottom-left`, `top-right`, or `top-left`, and offsets from 0–500 pixels, in `config/browser-cache-manager.php` or in the optional admin UI. Its menu action clears only configured/allowed app resources, optionally asks the browser to clear this origin's HTTP cache, then reloads the current page. For the HTTP cache request to pass Laravel CSRF protection, add this to the host layout's `<head>`:
+
+```blade
+<meta name="csrf-token" content="{{ csrf_token() }}">
+```
+
 The recovery configuration is opt-in and narrowly scoped:
 
 ```php
 // config/browser-cache-manager.php
 'recovery' => [
     'enabled' => false,
+    'clear_http_cache' => false,
     'clear_cache_storage' => false,
     'cache_storage_names' => ['my-app-cache-v1'],
     'unregister_service_workers' => false,
